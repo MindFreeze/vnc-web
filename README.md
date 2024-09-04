@@ -7,11 +7,16 @@ docker build -t vnc-web .
 to start:
 
 ```
-docker run -it -p 5901:5901 -e VNC_RESOLUTION=1920x1080 -e URL=example.com vnc-web
+docker run -it -p 5901-5908:5901-5908 vnc-web
+```
+
+To use a different configuration, you can mount a custom config.json file when running the container:
+
+```
+docker run -p 5901-5908:5901-5908 -v /path/to/your/config.json:/home/vnc_user/config.json vnc-web
 ```
 
 
 # TODO
 - [ ] Configurable password
-- [ ] Configurable VNC port (5901)
 - [ ] Optimize container size

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     x11-xserver-utils \
     xauth \
     openbox \
+    jq \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,16 +25,18 @@ RUN mkdir -p /home/vnc_user/.vnc && \
     echo "password" | vncpasswd -f > /home/vnc_user/.vnc/passwd && \
     chmod 600 /home/vnc_user/.vnc/passwd
 
-# Switch back to root to copy and set permissions on the startup script
+# Switch back to root to copy files and set permissions
 USER root
 COPY startup.sh /home/vnc_user/startup.sh
-RUN chown vnc_user:vnc_user /home/vnc_user/startup.sh && \
+COPY config.json /home/vnc_user/config.json
+RUN chown vnc_user:vnc_user /home/vnc_user/startup.sh /home/vnc_user/config.json && \
     chmod +x /home/vnc_user/startup.sh
 
 # Switch back to vnc_user for running the container
 USER vnc_user
 WORKDIR /home/vnc_user
 
-EXPOSE 5901
+# Expose 8 sequential ports
+EXPOSE 5901-5908
 
 CMD ["/home/vnc_user/startup.sh"]
