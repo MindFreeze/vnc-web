@@ -1,56 +1,45 @@
 #!/bin/bash
 
-export USER=$(whoami)
-export HOME=/home/$USER
-
-# Read configuration from JSON file
-CONFIG_FILE=${CONFIG_FILE:-/home/vnc_user/config.json}
-
-# Create .Xauthority file
-touch $HOME/.Xauthority
+# Start D-Bus
+dbus-daemon --system --fork
 
 # Remove any existing VNC lock files
 rm -rf /tmp/.X*-lock /tmp/.X11-unix
 
-# Function to start a VNC server and Firefox for a given display
-start_display() {
+# Function to start VNC server
+start_vnc() {
     local display=$1
-    local url=$2
-    local resolution=$3
-    local port=$4
-
-    # Calculate the display number (VNC uses base 5900 for port numbers)
-    local display_number=$((port - 5900))
-
-    # Start VNC server
-    vncserver :$display_number -geometry $resolution -depth 24 -rfbport $port && echo "VNC server started on display :$display_number (port $port) with resolution $resolution"
-
-    # Wait for VNC server to start
-    sleep 5
-
-    export DISPLAY=:$display_number
-
-    # Start a minimal window manager
-    openbox &
-
-    # Wait for window manager to start
-    sleep 5
-
-    # Start Firefox in full-screen mode
-    firefox --kiosk $url &
+    local width=$2
+    local height=$3
+    vncserver :$display -geometry ${width}x${height} -depth 16
 }
 
-# Read configuration and start displays
-display_count=0
-while IFS= read -r line; do
-    url=$(echo $line | jq -r '.url')
-    resolution=$(echo $line | jq -r '.resolution')
-    port=$(echo $line | jq -r '.port')
-    start_display $display_count $url $resolution $port
-    ((display_count++))
-done < <(jq -c '.displays[]' $CONFIG_FILE)
+# Read configuration from config.json
+config=$(cat /home/vnc_user/config.json)
 
-echo "Started $display_count displays"
+# Extract display configurations
+displays=$(echo $config | jq -c '.displays[]')
 
-# Keep the container running
+# Loop through each display configuration
+while IFS= read -r display; do
+    url=$(echo $display | jq -r '.url')
+    resolution=$(echo $display | jq -r '.resolution')
+    port=$(echo $display | jq -r '.port')
+    display_number=$((port - 5900))
+
+    # Split resolution into width and height
+    width=$(echo $resolution | cut -d'x' -f1)
+    height=$(echo $resolution | cut -d'x' -f2)
+
+    # Start a new VNC server for this display
+    start_vnc $display_number $width $height
+
+    # Wait a moment for the VNC server to start
+    sleep 2
+
+    # Start Chromium in kiosk mode for this display
+    DISPLAY=:$display_number chromium --new-window --no-sandbox --disable-gpu --kiosk --no-first-run --no-default-browser-check --disable-translate --disable-infobars --disable-suggestions-service --disable-save-password-bubble --user-data-dir="/home/vnc_user/data-$display_number" --load-preferences="/home/vnc_user/chromium_preferences.json" "$url" &
+done <<< "$displays"
+
+# Keep the script running
 tail -f /dev/null
