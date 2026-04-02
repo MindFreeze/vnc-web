@@ -1,6 +1,6 @@
 vnc-web
 ========
-Render a website in a docker container and serve it through VNC
+Render a website in a docker container and serve it through VNC. This was mainly a POC for https://github.com/MindFreeze/ha-vnc-web-browser
 
 to build:
 
